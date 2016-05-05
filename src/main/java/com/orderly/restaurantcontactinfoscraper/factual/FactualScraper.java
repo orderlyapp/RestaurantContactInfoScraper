@@ -39,7 +39,7 @@ public class FactualScraper {
         if (args.length == 2 && args[1].toLowerCase().equals("usa")) {
             pullUSA(args);
         } else if (args.length < 5) {
-            System.out.println("USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> <area_size_in_miles: should be a multiple of 5, remainder is ignored> <should_open_file_when_done: optional, default is false>");
+            System.out.println("USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> <area_size_in_miles> <should_open_file_when_done: optional, default is false>");
             System.out.println("        -- OR --");
             System.out.println("       java -jar FactualScraper.jar <output_directory> USA");
             exit();
@@ -60,6 +60,10 @@ public class FactualScraper {
         System.out.printf("Getting Factual data for the continental United States");
         System.out.println();
         Set<JSONObject> jsonObjects = new HashSet<>();
+
+        // Username: jking@siftit.com
+        // Password: TheOrderlyPassword
+
         Factual factual = new Factual(KEY, SECRET);
         double blockSizeInCoordsApprox = milesToCoordsApprox(blockSize);
 
@@ -78,9 +82,7 @@ public class FactualScraper {
 
             jsonObjects.clear();
             FileUtils.createAndWriteToFile(outputFile, csvContent, false, StandardOpenOption.APPEND);
-            if (SplitUSIntoCoordinates.isInUS(coordinates)) {
-                FileUtils.createAndWriteToFile(usaCoordinatesDoneFile, "\n" + coordinates, false, StandardOpenOption.APPEND);
-            }
+            FileUtils.createAndWriteToFile(usaCoordinatesDoneFile, "\n" + coordinates, false, StandardOpenOption.APPEND);
         }
 
         printThrottleInfo(throttleInfo);
@@ -225,7 +227,7 @@ public class FactualScraper {
                 String jsonAsString = readResponse.getJson();
                 JSONObject obj = new JSONObject(jsonAsString);
                 JSONObject response = obj.getJSONObject("response");
-                int numberOfRecordsReturnedForPage = response.getInt("included_rows");
+                int numberOfRecordsReturnedForPage = response.optInt("included_rows", LIMIT_RECORDS_PER_PAGE);
                 recordsGatheredForBlock += numberOfRecordsReturnedForPage;
                 JSONArray objArray = response.getJSONArray("data");
                 for (int k = 0; k < objArray.length(); k++) {
