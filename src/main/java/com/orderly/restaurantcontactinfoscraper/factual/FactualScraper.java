@@ -40,7 +40,7 @@ public class FactualScraper {
             pullUSA(args);
         } else if (args.length < 5) {
             System.out.println("USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> <area_size_in_miles: should be a multiple of 5, remainder is ignored> <should_open_file_when_done: optional, default is false>");
-            System.out.println("-- OR --");
+            System.out.println("        -- OR --");
             System.out.println("       java -jar FactualScraper.jar <output_directory> USA");
             exit();
         } else pullCity(args);
