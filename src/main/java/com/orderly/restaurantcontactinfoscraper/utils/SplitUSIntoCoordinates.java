@@ -1,4 +1,4 @@
-package com.orderly.restaurantcontactinfoscraper.factual;
+package com.orderly.restaurantcontactinfoscraper.utils;
 
 import com.orderly.restaurantcontactinfoscraper.Coordinates;
 import com.orderly.restaurantcontactinfoscraper.FileUtils;

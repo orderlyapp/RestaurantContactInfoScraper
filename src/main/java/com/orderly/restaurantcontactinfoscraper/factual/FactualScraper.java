@@ -4,17 +4,15 @@ import com.factual.driver.*;
 import com.orderly.restaurantcontactinfoscraper.Coordinates;
 import com.orderly.restaurantcontactinfoscraper.FileUtils;
 import com.orderly.restaurantcontactinfoscraper.GeoBlock;
+import com.orderly.restaurantcontactinfoscraper.utils.MapsUtils;
+import com.orderly.restaurantcontactinfoscraper.utils.SplitUSIntoCoordinates;
 import javafx.util.Pair;
 import org.apache.activemq.artemis.utils.json.JSONArray;
 import org.apache.activemq.artemis.utils.json.JSONException;
 import org.apache.activemq.artemis.utils.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
@@ -136,7 +134,7 @@ public class FactualScraper {
 		System.out.printf("Getting Factual data for restaurants in a %dx%d mile block around the center of %s, %s, %s and saving it in \"%s\"%n", totalBlockSizeMiles,
 						  totalBlockSizeMiles, city, state, country, outputDir);
 
-		Optional<Pair<Double, Double>> coordinatesOptional = getCoordinatesByCityInfo(city, state, country);
+		Optional<Pair<Double, Double>> coordinatesOptional = MapsUtils.getCoordinatesByCityInfo(city, state, country);
 
 		if (coordinatesOptional.isPresent()) {
 			Pair<Double, Double> coordinates = coordinatesOptional.get();
@@ -304,48 +302,5 @@ public class FactualScraper {
 
 	private static void restart () {
 		System.exit(2);
-	}
-
-	public static Optional<Pair<Double, Double>> getCoordinatesByCityInfo (String city, String state, String country) {
-		try {
-			//	https://maps.googleapis.com/maps/api/geocode/json?address=cumming,ga,usa
-			String key = "AIzaSyB0ObIHD41ZiTIQv6P8dwWx4L1h8jA1Jug";
-			String url = urlEscapeSpace(String.format("https://maps.googleapis.com/maps/api/geocode/json?key=%s&address=<%s,%s,%s>", key, city, state, country));
-			String response = getResponseBody(url);
-
-			JSONObject obj = new JSONObject(response);
-			if (!obj.getString("status").equalsIgnoreCase("OK")) {
-				throw new Exception("Return Status was NOT \"OK\"!\n\n" + response);
-			}
-			JSONObject res = obj.getJSONArray("results").getJSONObject(0);
-			JSONObject loc = res.getJSONObject("geometry").getJSONObject("location");
-			double lat = loc.getDouble("lat");
-			double lon = loc.getDouble("lng");
-
-			return Optional.of(new Pair<>(lat, lon));
-		} catch (Exception e) {
-			e.printStackTrace();
-			return Optional.empty();
-		}
-	}
-
-	private static String urlEscapeSpace (String url) {
-		return url.replaceAll(" ", "%20");
-	}
-
-	private static String getResponseBody (String url) {
-		try {
-			URLConnection connection = new URL(url).openConnection();
-			BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-			String inputLine;
-
-			String response = "";
-			while ((inputLine = in.readLine()) != null) { response += inputLine; }
-			in.close();
-			return response;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return "";
-		}
 	}
 }
