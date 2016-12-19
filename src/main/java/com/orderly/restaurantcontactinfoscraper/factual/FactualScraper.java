@@ -62,6 +62,7 @@ public class FactualScraper {
 				case 2:
 					break;
 				case 3:
+					ConsoleUtils.clearConsole();
 					displayExistingSearches();
 					break;
 				case 4:
@@ -121,7 +122,7 @@ public class FactualScraper {
 		Options existingSearchesList = new Options("Existing Searches", null);
 		FileUtils.getAllExistingSearches().forEach(search -> existingSearchesList.add(search.getName()));
 		existingSearchesList.displayToUser();
-		KeyIn.inString("Press any key to go back");
+		KeyIn.inString("Press enter to go back");
 	}
 
 	private static void exit () {

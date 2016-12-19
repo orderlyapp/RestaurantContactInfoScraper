@@ -9,8 +9,12 @@ import java.util.Comparator;
  */
 public class ConsoleUtils {
 	public static void printBox (@Nonnull String prompt, int padding) {
+		printBox(prompt, padding, 0);
+	}
+
+	public static void printBox (@Nonnull String prompt, int padding, int minWidth) {
 		String[] lines = prompt.split("\n");
-		int width = Arrays.stream(lines).map(String::length).max(Comparator.naturalOrder()).orElse(0) + 2 + padding + padding;
+		int width = Integer.max(minWidth, Arrays.stream(lines).map(String::length).max(Comparator.naturalOrder()).orElse(0) + 2 + padding + padding);
 		ConsoleUtils.printDivider(width, "=");
 		Arrays.stream(lines).forEach(line -> ConsoleUtils.printStringWithPadding(line, padding, width));
 		ConsoleUtils.printDivider(width, "=");

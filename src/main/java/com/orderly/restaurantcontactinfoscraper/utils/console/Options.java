@@ -46,7 +46,7 @@ public class Options {
 		int longestPromptOrOptionLength = Integer.max(options.stream().map(Item::toString).map(String::length).max(Comparator.naturalOrder()).orElse(0), prompt.length());
 		int width = longestPromptOrOptionLength + 8;
 
-		ConsoleUtils.printBox(prompt, 3);
+		ConsoleUtils.printBox(prompt, 3, width);
 		Optional.ofNullable(subtitle).ifPresent(subtitle -> ConsoleUtils.printStringWithPadding(subtitle, 1, width));
 
 		options.stream().map(Item::toString).forEach(s -> ConsoleUtils.printStringWithPadding(s, 3, width));
