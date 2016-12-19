@@ -1,7 +1,6 @@
 package com.orderly.restaurantcontactinfoscraper.utils;
 
-import com.orderly.restaurantcontactinfoscraper.Coordinates;
-import com.orderly.restaurantcontactinfoscraper.FileUtils;
+import com.orderly.restaurantcontactinfoscraper.model.Coordinates;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -97,7 +96,7 @@ public class SplitUSIntoCoordinates {
 		String outputDir = "/Users/joshuaking/Desktop/SplitUSIntoCoordinates/";
 		new File(outputDir).mkdirs();
 		File file = new File(String.format("%s/withinUSCoords.txt", outputDir));
-		FileUtils.createAndWriteToFile(file, lines, true);
+		com.orderly.restaurantcontactinfoscraper.utils.FileUtils.createAndWriteToFile(file, lines, true);
 	}
 
 	public static List<Coordinates> getCoordinatesInUS () {

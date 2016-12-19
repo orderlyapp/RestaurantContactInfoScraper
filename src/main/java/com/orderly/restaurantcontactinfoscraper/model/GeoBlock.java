@@ -1,4 +1,4 @@
-package com.orderly.restaurantcontactinfoscraper;
+package com.orderly.restaurantcontactinfoscraper.model;
 
 import com.factual.driver.Rectangle;
 import javafx.util.Pair;

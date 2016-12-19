@@ -2,9 +2,10 @@ package com.orderly.restaurantcontactinfoscraper.factual;
 
 import com.factual.driver.*;
 import com.factual.driver.Shape;
-import com.orderly.restaurantcontactinfoscraper.Coordinates;
-import com.orderly.restaurantcontactinfoscraper.FileUtils;
-import com.orderly.restaurantcontactinfoscraper.GeoBlock;
+import com.orderly.restaurantcontactinfoscraper.model.Coordinates;
+import com.orderly.restaurantcontactinfoscraper.model.GeoBlock;
+import com.orderly.restaurantcontactinfoscraper.model.Search;
+import com.orderly.restaurantcontactinfoscraper.utils.FileUtils;
 import com.orderly.restaurantcontactinfoscraper.utils.MapsUtils;
 import com.orderly.restaurantcontactinfoscraper.utils.SplitUSIntoCoordinates;
 import com.orderly.restaurantcontactinfoscraper.utils.console.ConsoleUtils;
@@ -43,25 +44,28 @@ public class FactualScraper {
 
 	public static void main (String[] args) throws Exception {
 		while (true) {
+			int numberOfExistingSearches = FileUtils.getExistingSearchesAsFiles().length;
+
+			ConsoleUtils.clearConsole();
 			Options toDoOptions = new Options("What would you like to do?");
 			toDoOptions.add("Create a new search");
 			toDoOptions.add("Resume a search");
-			toDoOptions.add("Display all searches");
+			toDoOptions.add(String.format("Display all %d searches", numberOfExistingSearches));
 			toDoOptions.add("Exit");
 			Options.Item toDo = toDoOptions.getUserChoice();
 
-			ConsoleUtils.clearConsole();
 			switch (toDo.getIndex()) {
-				case 0:
-					System.out.println("Creating new search!");
-					System.out.println();
-					createNewSearch();
-					break;
 				case 1:
+					ConsoleUtils.clearConsole();
+					createNewSearch();
 					break;
 				case 2:
 					break;
 				case 3:
+					displayExistingSearches();
+					break;
+				case 4:
+					System.out.println();
 					System.out.println("Have a nice day!");
 					exit();
 					break;
@@ -77,12 +81,17 @@ public class FactualScraper {
 		String searchName = KeyIn.inString("Name: ");
 		ConsoleUtils.newLine(3);
 
-		Options options = new Options("USA or single city?");
+		Options options = new Options("USA or specific city?");
 		options.add("USA");
 		options.add("Single City");
 		options.add("Cancel");
 		Options.Item usaOrCity = options.getUserChoice();
+
 		ConsoleUtils.newLine(3);
+		if (usaOrCity.getIndex() == 3) {
+			System.out.println("Cancelled new search.");
+			return;
+		}
 
 		ConsoleUtils.printBox("What's your search term?", 3);
 		String searchTerm = KeyIn.inString("Search Term: ");
@@ -99,10 +108,20 @@ public class FactualScraper {
 		ConsoleUtils.printBox("Paste your Factual Secret below\n[Not your key]", 3);
 		String factualSecret = KeyIn.inString("Secret: ");
 		while (factualSecret.equals(factualKey)) {
-			System.out.println("Your Factual Key and Secret are different. Please paste your Factual Secret below.");
+			System.out.println("Your Factual Key and Secret should different. Please paste your Factual Secret below.");
 			factualSecret = KeyIn.inString("Secret: ");
 		}
 		ConsoleUtils.newLine(3);
+
+		Search search = new Search(searchName, usaOrCity.getIndex() == 1, searchTerm, factualKey, factualSecret);
+		FileUtils.saveToDirectory(search, FileUtils.getExistingSearchesDir());
+	}
+
+	private static void displayExistingSearches () {
+		Options existingSearchesList = new Options("Existing Searches", null);
+		FileUtils.getAllExistingSearches().forEach(search -> existingSearchesList.add(search.getName()));
+		existingSearchesList.displayToUser();
+		KeyIn.inString("Press any key to go back");
 	}
 
 	private static void exit () {

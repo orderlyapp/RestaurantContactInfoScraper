@@ -1,4 +1,4 @@
-package com.orderly.restaurantcontactinfoscraper;
+package com.orderly.restaurantcontactinfoscraper.model;
 
 import javafx.util.Pair;
 
