@@ -1,21 +1,29 @@
 package com.orderly.restaurantcontactinfoscraper.factual;
 
 import com.factual.driver.*;
+import com.factual.driver.Shape;
 import com.orderly.restaurantcontactinfoscraper.Coordinates;
 import com.orderly.restaurantcontactinfoscraper.FileUtils;
 import com.orderly.restaurantcontactinfoscraper.GeoBlock;
 import com.orderly.restaurantcontactinfoscraper.utils.MapsUtils;
 import com.orderly.restaurantcontactinfoscraper.utils.SplitUSIntoCoordinates;
+import com.orderly.restaurantcontactinfoscraper.utils.console.ConsoleUtils;
+import com.orderly.restaurantcontactinfoscraper.utils.console.KeyIn;
+import com.orderly.restaurantcontactinfoscraper.utils.console.Options;
 import javafx.util.Pair;
 import org.apache.activemq.artemis.utils.json.JSONArray;
 import org.apache.activemq.artemis.utils.json.JSONException;
 import org.apache.activemq.artemis.utils.json.JSONObject;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -24,26 +32,81 @@ import java.util.stream.Collectors;
  * http://www.darrinward.com/lat-long/?id=1935749
  */
 public class FactualScraper {
-	public static final String HEADER                 = "name,phone,address,locality,region,country,zip,website,email,factual_page,latitude,longitude";
-	public static final String KEY                    = "WynD7vY8DuZXFSsQng6ePIsaT3pPUgDx5TwZV41f";
-	public static final int    LIMIT_RECORDS_PER_PAGE = 50;
-	public static final int    MAX_RECORDS_PER_BLOCK  = 500;
-	public static final String NEW_LINE               = "\n";
-	public static final String QUOTE                  = "\"";
-	public static final String SECRET                 = "tqP4PIK5oKIpRF5mRxRJJI1IDrUp8gXI4fKIPUjl";
+	private static final String HEADER                 = "name,phone,address,locality,region,country,zip,website,email,factual_page,latitude,longitude";
+	private static final String KEY                    = "WynD7vY8DuZXFSsQng6ePIsaT3pPUgDx5TwZV41f";
+	private static final int    LIMIT_RECORDS_PER_PAGE = 50;
+	private static final int    MAX_RECORDS_PER_BLOCK  = 500;
+	private static final String NEW_LINE               = "\n";
+	private static final String QUOTE                  = "\"";
+	private static final String SECRET                 = "tqP4PIK5oKIpRF5mRxRJJI1IDrUp8gXI4fKIPUjl";
 	private static File usaCoordinatesDoneDrillInFile;
 
 	public static void main (String[] args) throws Exception {
-		if (args.length == 2 && args[1].toLowerCase().equals("usa")) {
-			pullUSA(args);
-		} else if (args.length < 5) {
-			System.out.println(
-					"USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> <area_size_in_miles> <should_open_file_when_done: optional, default is " +
-					"false>");
-			System.out.println("        -- OR --");
-			System.out.println("       java -jar FactualScraper.jar <output_directory> USA");
+		while (true) {
+			Options toDoOptions = new Options("What would you like to do?");
+			toDoOptions.add("Create a new search");
+			toDoOptions.add("Resume a search");
+			toDoOptions.add("Display all searches");
+			toDoOptions.add("Exit");
+			Options.Item toDo = toDoOptions.getUserChoice();
+
+			ConsoleUtils.clearConsole();
+			switch (toDo.getIndex()) {
+				case 0:
+					System.out.println("Creating new search!");
+					System.out.println();
+					createNewSearch();
+					break;
+				case 1:
+					break;
+				case 2:
+					break;
+				case 3:
+					System.out.println("Have a nice day!");
+					exit();
+					break;
+
+				default:
+					break;
+			}
+		}
+	}
+
+	public static void createNewSearch () throws IOException, URISyntaxException {
+		ConsoleUtils.printBox("What would you like to name this search?", 3);
+		String searchName = KeyIn.inString("Name: ");
+		ConsoleUtils.newLine(3);
+
+		Options options = new Options("USA or single city?");
+		options.add("USA");
+		options.add("Single City");
+		options.add("Cancel");
+		Options.Item usaOrCity = options.getUserChoice();
+		ConsoleUtils.newLine(3);
+
+		ConsoleUtils.printBox("What's your search term?", 3);
+		String searchTerm = KeyIn.inString("Search Term: ");
+		ConsoleUtils.newLine(3);
+
+		ConsoleUtils.printBox("Paste your Factual Key below\n[Don't have a key? Just hit enter to get one.]", 3);
+		String factualKey = KeyIn.inString("Key: ");
+		if (factualKey.length() == 0) {
+			if (Desktop.isDesktopSupported()) { Desktop.getDesktop().browse(new URI("https://www.factual.com/api-keys/request")); }
 			exit();
-		} else { pullCity(args); }
+		}
+		ConsoleUtils.newLine(3);
+
+		ConsoleUtils.printBox("Paste your Factual Secret below\n[Not your key]", 3);
+		String factualSecret = KeyIn.inString("Secret: ");
+		while (factualSecret.equals(factualKey)) {
+			System.out.println("Your Factual Key and Secret are different. Please paste your Factual Secret below.");
+			factualSecret = KeyIn.inString("Secret: ");
+		}
+		ConsoleUtils.newLine(3);
+	}
+
+	private static void exit () {
+		System.exit(0);
 	}
 
 	private static void pullUSA (String[] args) throws Exception {
@@ -294,10 +357,6 @@ public class FactualScraper {
 			System.out.print(" ");
 		}
 		System.out.print("]");
-	}
-
-	private static void exit () {
-		System.exit(1);
 	}
 
 	private static void restart () {
