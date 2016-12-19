@@ -26,14 +26,13 @@ import java.util.stream.Collectors;
  * http://www.darrinward.com/lat-long/?id=1935749
  */
 public class FactualScraper {
-	private static final String HEADER                 = "name,phone,address,locality,region,country,zip,website," +
-														 "email,factual_page,latitude,longitude";
-	private static final String KEY                    = "WynD7vY8DuZXFSsQng6ePIsaT3pPUgDx5TwZV41f";
-	private static final int    LIMIT_RECORDS_PER_PAGE = 50;
-	private static final int    MAX_RECORDS_PER_BLOCK  = 500;
-	private static final String NEW_LINE               = "\n";
-	private static final String QUOTE                  = "\"";
-	private static final String SECRET                 = "tqP4PIK5oKIpRF5mRxRJJI1IDrUp8gXI4fKIPUjl";
+	public static final String HEADER                 = "name,phone,address,locality,region,country,zip,website,email,factual_page,latitude,longitude";
+	public static final String KEY                    = "WynD7vY8DuZXFSsQng6ePIsaT3pPUgDx5TwZV41f";
+	public static final int    LIMIT_RECORDS_PER_PAGE = 50;
+	public static final int    MAX_RECORDS_PER_BLOCK  = 500;
+	public static final String NEW_LINE               = "\n";
+	public static final String QUOTE                  = "\"";
+	public static final String SECRET                 = "tqP4PIK5oKIpRF5mRxRJJI1IDrUp8gXI4fKIPUjl";
 	private static File usaCoordinatesDoneDrillInFile;
 
 	public static void main (String[] args) throws Exception {
@@ -41,8 +40,8 @@ public class FactualScraper {
 			pullUSA(args);
 		} else if (args.length < 5) {
 			System.out.println(
-					"USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> " +
-					"<area_size_in_miles> <should_open_file_when_done: optional, default is false>");
+					"USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> <area_size_in_miles> <should_open_file_when_done: optional, default is " +
+					"false>");
 			System.out.println("        -- OR --");
 			System.out.println("       java -jar FactualScraper.jar <output_directory> USA");
 			exit();
@@ -57,11 +56,8 @@ public class FactualScraper {
 		usaCoordinatesDoneDrillInFile = new File(outputDir + "/coordinates_drill_in_done_usa.txt");
 
 		if (usaCoordinatesDoneFile.exists()) {
-			coordinatesInUS.removeAll(Files.readAllLines(usaCoordinatesDoneFile.toPath())
-										   .stream()
-										   .filter(line -> line.trim().length() > 0)
-										   .map(Coordinates::parse)
-										   .collect(Collectors.toList()));
+			coordinatesInUS.removeAll(
+					Files.readAllLines(usaCoordinatesDoneFile.toPath()).stream().filter(line -> line.trim().length() > 0).map(Coordinates::parse).collect(Collectors.toList()));
 		}
 
 		System.out.printf("Getting Factual data for the continental United States");
@@ -89,8 +85,7 @@ public class FactualScraper {
 
 			jsonObjects.clear();
 			FileUtils.createAndWriteToFile(outputFile, csvContent, false, StandardOpenOption.APPEND);
-			FileUtils.createAndWriteToFile(usaCoordinatesDoneFile, "\n" + coordinates, false,
-										   StandardOpenOption.APPEND);
+			FileUtils.createAndWriteToFile(usaCoordinatesDoneFile, "\n" + coordinates, false, StandardOpenOption.APPEND);
 		}
 
 		printThrottleInfo(throttleInfo);
@@ -116,18 +111,7 @@ public class FactualScraper {
 			String lat = String.valueOf(obj.optDouble("latitude"));
 			String lon = String.valueOf(obj.optDouble("longitude"));
 
-			String[] csvLineData = new String[]{name,
-												phone,
-												address,
-												locality,
-												region,
-												country,
-												zip,
-												website,
-												email,
-												factualPageUrl,
-												lat,
-												lon};
+			String[] csvLineData = new String[]{name, phone, address, locality, region, country, zip, website, email, factualPageUrl, lat, lon};
 			return Arrays.stream(csvLineData)
 						 .map(cell -> QUOTE + cell.replace(QUOTE, QUOTE + QUOTE) + QUOTE)
 						 .reduce((cell1, cell2) -> cell1.trim().concat(",").concat(cell2.trim()))
@@ -149,11 +133,8 @@ public class FactualScraper {
 		int numberOfColumns = totalBlockSizeMiles / blockSize;
 		int minNumberOfBlocks = numberOfColumns * numberOfColumns;
 
-		System.out.printf(
-				"Getting Factual data for restaurants in a %dx%d mile block around the center of %s, %s, %s and " +
-				"saving" +
-				" it in \"%s\"%n",
-				totalBlockSizeMiles, totalBlockSizeMiles, city, state, country, outputDir);
+		System.out.printf("Getting Factual data for restaurants in a %dx%d mile block around the center of %s, %s, %s and saving it in \"%s\"%n", totalBlockSizeMiles,
+						  totalBlockSizeMiles, city, state, country, outputDir);
 
 		Optional<Pair<Double, Double>> coordinatesOptional = getCoordinatesByCityInfo(city, state, country);
 
@@ -197,8 +178,7 @@ public class FactualScraper {
 			String csvContent = HEADER + jsonObjectsToCsv(jsonObjects);
 
 			new File(outputDir).mkdirs();
-			File outputFile = new File(
-					outputDir + "/" + city + "_" + state + "_" + String.valueOf(System.currentTimeMillis()) + ".csv");
+			File outputFile = new File(outputDir + "/" + city + "_" + state + "_" + String.valueOf(System.currentTimeMillis()) + ".csv");
 			FileUtils.createAndWriteToFile(outputFile, csvContent, openWhenDone);
 
 			System.out.println("Done.");
@@ -208,21 +188,16 @@ public class FactualScraper {
 		}
 	}
 
-	private static String getRecordsAndDrillDownInBlockAsNeeded (Set<JSONObject> jsonObjects, Factual factual,
-																 GeoBlock block, String throttleInfo)
+	private static String getRecordsAndDrillDownInBlockAsNeeded (Set<JSONObject> jsonObjects, Factual factual, GeoBlock block, String throttleInfo)
 			throws InterruptedException, JSONException {
-		Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects,
-																										   factual,
-																										   block,
-																										   throttleInfo);
+		Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects, factual, block, throttleInfo);
 		int recordsGatheredForBlock = numberOfRecordsGatheredAndThrottleInfoPair.getKey();
 		throttleInfo = numberOfRecordsGatheredAndThrottleInfoPair.getValue();
 		throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
 		return throttleInfo;
 	}
 
-	private static String drillDownInBlockIfNeeded (Set<JSONObject> jsonObjects, Factual factual, String throttleInfo,
-													GeoBlock block, int recordsGatheredForBlock)
+	private static String drillDownInBlockIfNeeded (Set<JSONObject> jsonObjects, Factual factual, String throttleInfo, GeoBlock block, int recordsGatheredForBlock)
 			throws InterruptedException, JSONException {
 		if (recordsGatheredForBlock == MAX_RECORDS_PER_BLOCK) {
 			double newBlockSizeInCoords = Math.abs((block.ul.lat - block.lr.lat) / 2);
@@ -239,24 +214,20 @@ public class FactualScraper {
 				block.lr.lon = origLonFrom + (indexOnThisRow * newBlockSizeInCoords + newBlockSizeInCoords);
 
 				try {
-					FileUtils.createAndWriteToFile(usaCoordinatesDoneDrillInFile, "\n" + block, false,
-												   StandardOpenOption.APPEND);
+					FileUtils.createAndWriteToFile(usaCoordinatesDoneDrillInFile, "\n" + block, false, StandardOpenOption.APPEND);
 				} catch (IOException ignored) {
 				}
 
-				Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(
-						jsonObjects, factual, block, throttleInfo);
+				Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects, factual, block, throttleInfo);
 				recordsGatheredForBlock = numberOfRecordsGatheredAndThrottleInfoPair.getKey();
 				throttleInfo = numberOfRecordsGatheredAndThrottleInfoPair.getValue();
-				throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block,
-														recordsGatheredForBlock);
+				throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
 			}
 		}
 		return throttleInfo;
 	}
 
-	private static Pair<Integer, String> tryToAddRecordsToSetWithinBlock (Set<JSONObject> jsonObjects, Factual factual,
-																		  GeoBlock block, String throttleInfo)
+	private static Pair<Integer, String> tryToAddRecordsToSetWithinBlock (Set<JSONObject> jsonObjects, Factual factual, GeoBlock block, String throttleInfo)
 			throws InterruptedException, JSONException {
 		try {
 			int recordsGatheredForBlock = 0;
@@ -272,9 +243,7 @@ public class FactualScraper {
 				Thread.sleep(500);      // To help with the burst and expensive throttle
 
 				ReadResponse readResponse = factual.fetch("restaurants-us", query);
-				throttleInfo = readResponse.getRawResponse()
-										   .getHeaders()
-										   .getFirstHeaderStringValue("X-Factual-Throttle-Allocation");
+				throttleInfo = readResponse.getRawResponse().getHeaders().getFirstHeaderStringValue("X-Factual-Throttle-Allocation");
 
 				String jsonAsString = readResponse.getJson();
 				JSONObject obj = new JSONObject(jsonAsString);
@@ -291,9 +260,7 @@ public class FactualScraper {
 		} catch (FactualApiException e) {
 			e.printStackTrace();
 			printThrottleInfo(throttleInfo);
-			if (e.getStatusCode() == 403 && !e.getMessage().toLowerCase().contains("please simplify your query")) {
-				exit();
-			} else { restart(); }
+			if (e.getStatusCode() == 403 && !e.getMessage().toLowerCase().contains("please simplify your query")) { exit(); } else { restart(); }
 			return new Pair<>(0, throttleInfo);
 		}
 	}
@@ -306,8 +273,7 @@ public class FactualScraper {
 		System.out.println();
 		System.out.println();
 		try {
-			System.out.printf("API usage for this 24-hour period is at %s%n",
-							  new JSONObject(throttleInfo).getString("daily"));
+			System.out.printf("API usage for this 24-hour period is at %s%n", new JSONObject(throttleInfo).getString("daily"));
 		} catch (JSONException ignored) {
 		}
 		System.out.println(throttleInfo);
@@ -344,9 +310,7 @@ public class FactualScraper {
 		try {
 			//	https://maps.googleapis.com/maps/api/geocode/json?address=cumming,ga,usa
 			String key = "AIzaSyB0ObIHD41ZiTIQv6P8dwWx4L1h8jA1Jug";
-			String url = urlEscapeSpace(
-					String.format("https://maps.googleapis.com/maps/api/geocode/json?key=%s&address=<%s,%s,%s>", key,
-								  city, state, country));
+			String url = urlEscapeSpace(String.format("https://maps.googleapis.com/maps/api/geocode/json?key=%s&address=<%s,%s,%s>", key, city, state, country));
 			String response = getResponseBody(url);
 
 			JSONObject obj = new JSONObject(response);

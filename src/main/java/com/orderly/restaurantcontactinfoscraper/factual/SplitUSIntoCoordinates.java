@@ -92,11 +92,7 @@ public class SplitUSIntoCoordinates {
 		//  49.175741871935685,-124.87946875
 		//  24.937160872053784,-66.31409374999998
 
-		String lines = getCoordinatesInUS().stream()
-										   .map(Coordinates::toString)
-										   .map(line -> line.concat("\n"))
-										   .reduce(String::concat)
-										   .orElse("");
+		String lines = getCoordinatesInUS().stream().map(Coordinates::toString).map(line -> line.concat("\n")).reduce(String::concat).orElse("");
 
 		String outputDir = "/Users/joshuaking/Desktop/SplitUSIntoCoordinates/";
 		new File(outputDir).mkdirs();
