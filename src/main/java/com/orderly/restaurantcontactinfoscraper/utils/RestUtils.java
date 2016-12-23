@@ -23,7 +23,8 @@ public class RestUtils {
 			while ((inputLine = in.readLine()) != null) { response += inputLine; }
 			in.close();
 			return response;
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			return "";
 		}

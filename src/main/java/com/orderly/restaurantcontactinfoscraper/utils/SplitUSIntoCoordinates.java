@@ -93,10 +93,10 @@ public class SplitUSIntoCoordinates {
 
 		String lines = getCoordinatesInUS().stream().map(Coordinates::toString).map(line -> line.concat("\n")).reduce(String::concat).orElse("");
 
-		String outputDir = "/Users/joshuaking/Desktop/SplitUSIntoCoordinates/";
+		String outputDir = String.format(".%sSplitUSIntoCoordinates", File.separator);
 		new File(outputDir).mkdirs();
-		File file = new File(String.format("%s/withinUSCoords.txt", outputDir));
-		com.orderly.restaurantcontactinfoscraper.utils.FileUtils.createAndWriteToFile(file, lines, true);
+		File file = new File(String.format("%s%swithinUSCoords.txt", outputDir, File.separator));
+		FileUtils.createAndWriteToFile(file, lines);
 	}
 
 	public static List<Coordinates> getCoordinatesInUS () {

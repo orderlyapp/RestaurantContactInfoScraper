@@ -11,11 +11,32 @@ public class Search implements Serializable {
 	private final String  searchTerm;
 	private final String  factualKey;
 	private final String  factualSecret;
+	private final String  city;
+	private final String  state;
+	private final String  country;
+	private final int     totalBlockSizeMiles;
 	private final String  outputDirectory;
 
-	public Search (String name, boolean isUsaSearch, String searchTerm, String factualKey, String factualSecret) {
+	public Search (String name, String searchTerm, String factualKey, String factualSecret) {
 		this.name = name;
-		this.isUsaSearch = isUsaSearch;
+		this.city = null;
+		this.state = null;
+		this.country = null;
+		this.totalBlockSizeMiles = -1;
+		this.isUsaSearch = true;
+		this.searchTerm = searchTerm;
+		this.factualKey = factualKey;
+		this.factualSecret = factualSecret;
+		this.outputDirectory = String.valueOf(System.currentTimeMillis());
+	}
+
+	public Search (String name, String city, String state, String country, int totalBlockSizeMiles, String searchTerm, String factualKey, String factualSecret) {
+		this.name = name;
+		this.city = city;
+		this.state = state;
+		this.country = country;
+		this.totalBlockSizeMiles = totalBlockSizeMiles;
+		this.isUsaSearch = false;
 		this.searchTerm = searchTerm;
 		this.factualKey = factualKey;
 		this.factualSecret = factualSecret;
@@ -61,6 +82,22 @@ public class Search implements Serializable {
 
 	public String getFactualSecret () {
 		return factualSecret;
+	}
+
+	public String getCity () {
+		return city;
+	}
+
+	public String getState () {
+		return state;
+	}
+
+	public String getCountry () {
+		return country;
+	}
+
+	public int getTotalBlockSizeMiles () {
+		return totalBlockSizeMiles;
 	}
 
 	@Override public int hashCode () {

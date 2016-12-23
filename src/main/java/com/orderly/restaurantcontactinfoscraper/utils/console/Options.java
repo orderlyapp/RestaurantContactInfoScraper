@@ -38,10 +38,12 @@ public class Options<T> {
 					cancelListener.run();
 					return Optional.empty();
 				}
-				if (chosenIndex <= options.size() && chosenIndex > 0) { break; } else {
+				if (chosenIndex <= options.size() && chosenIndex > 0) { break; }
+				else {
 					KeyIn.printPrompt("Please choose an option between 1 and " + options.size() + " (inclusive).\n");
 				}
-			} else {
+			}
+			else {
 				KeyIn.inString("Press enter to continue: ");
 				return Optional.empty();
 			}

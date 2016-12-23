@@ -13,7 +13,8 @@ public class KeyIn {
 	private static void inputFlush () {
 		try {
 			while ((System.in.available()) != 0) { System.in.read(); }
-		} catch (java.io.IOException e) {
+		}
+		catch (java.io.IOException e) {
 			System.out.println("Input error");
 		}
 	}
@@ -31,10 +32,12 @@ public class KeyIn {
 		while (!finished) {
 			try {
 				aChar = System.in.read();
-				if (aChar < 0 || (char) aChar == '\n') { finished = true; } else if ((char) aChar != '\r') {
+				if (aChar < 0 || (char) aChar == '\n') { finished = true; }
+				else if ((char) aChar != '\r') {
 					s = s + (char) aChar; // Enter into string
 				}
-			} catch (java.io.IOException e) {
+			}
+			catch (java.io.IOException e) {
 				System.out.println("Input error");
 				finished = true;
 			}
@@ -48,7 +51,8 @@ public class KeyIn {
 			printPrompt(prompt);
 			try {
 				return Integer.valueOf(inString().trim()).intValue();
-			} catch (NumberFormatException e) {
+			}
+			catch (NumberFormatException e) {
 				System.out.println("Invalid input. Not an integer");
 			}
 		}
@@ -62,7 +66,8 @@ public class KeyIn {
 
 		try {
 			aChar = System.in.read();
-		} catch (java.io.IOException e) {
+		}
+		catch (java.io.IOException e) {
 			System.out.println("Input error");
 		}
 		inputFlush();
@@ -75,7 +80,8 @@ public class KeyIn {
 			printPrompt(prompt);
 			try {
 				return Double.valueOf(inString().trim()).doubleValue();
-			} catch (NumberFormatException e) {
+			}
+			catch (NumberFormatException e) {
 				System.out
 						.println("Invalid input. Not a floating point number");
 			}

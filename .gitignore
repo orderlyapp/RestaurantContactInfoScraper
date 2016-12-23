@@ -72,3 +72,5 @@ hs_err_pid*
 
 # Serialized object files
 *.ser
+
+_EXISTING_SEARCHES_/*

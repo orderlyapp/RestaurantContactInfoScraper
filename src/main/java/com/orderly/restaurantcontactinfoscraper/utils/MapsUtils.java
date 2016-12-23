@@ -28,8 +28,8 @@ public class MapsUtils {
 			double lon = loc.getDouble("lng");
 
 			return Optional.of(new Pair<>(lat, lon));
-		} catch (Exception e) {
-			e.printStackTrace();
+		}
+		catch (Exception e) {
 			return Optional.empty();
 		}
 	}
