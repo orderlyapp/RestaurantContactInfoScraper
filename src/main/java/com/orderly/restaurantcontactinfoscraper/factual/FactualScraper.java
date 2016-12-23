@@ -2,6 +2,7 @@ package com.orderly.restaurantcontactinfoscraper.factual;
 
 import com.factual.driver.*;
 import com.factual.driver.Shape;
+import com.orderly.restaurantcontactinfoscraper.controller.SearchController;
 import com.orderly.restaurantcontactinfoscraper.model.Coordinates;
 import com.orderly.restaurantcontactinfoscraper.model.GeoBlock;
 import com.orderly.restaurantcontactinfoscraper.model.Search;
@@ -47,32 +48,30 @@ public class FactualScraper {
 			int numberOfExistingSearches = FileUtils.getExistingSearchesAsFiles().length;
 
 			ConsoleUtils.clearConsole();
-			Options toDoOptions = new Options("What would you like to do?");
-			toDoOptions.add("Create a new search");
-			toDoOptions.add("Resume a search");
-			toDoOptions.add(String.format("Display all %d searches", numberOfExistingSearches));
-			toDoOptions.add("Exit");
-			Options.Item toDo = toDoOptions.getUserChoice();
+			Options<String> toDoOptions = new Options<String>("What would you like to do?");
+			Options.Item<String> createNewSearchItem = toDoOptions.add("Create a new search");
+			Options.Item<String> runExistingSearchItem = toDoOptions.add("Run an existing search");
+			Options.Item<String> deleteASearchItem = toDoOptions.add("Delete a search");
+			Options.Item<String> displayAllSearchesItem = toDoOptions.add(String.format("Display all %d searches", numberOfExistingSearches));
+			Options.Item<String> exitItem = toDoOptions.add("Exit");
+			Options.Item<String> toDo = toDoOptions.getUserChoice().orElse(exitItem);
 
-			switch (toDo.getIndex()) {
-				case 1:
-					ConsoleUtils.clearConsole();
-					createNewSearch();
-					break;
-				case 2:
-					break;
-				case 3:
-					ConsoleUtils.clearConsole();
-					displayExistingSearches();
-					break;
-				case 4:
-					System.out.println();
-					System.out.println("Have a nice day!");
-					exit();
-					break;
-
-				default:
-					break;
+			if (toDo.equals(createNewSearchItem)) {
+				ConsoleUtils.clearConsole();
+				createNewSearch();
+			} else if (toDo.equals(runExistingSearchItem)) {
+			} else if (toDo.equals(deleteASearchItem)) {
+				ConsoleUtils.clearConsole();
+				deleteASearch();
+			} else if (toDo.equals(displayAllSearchesItem)) {
+				ConsoleUtils.clearConsole();
+				displayExistingSearches();
+			} else if (toDo.equals(exitItem)) {
+				System.out.println();
+				System.out.println("Have a nice day!");
+				exit();
+			} else {
+				exit();
 			}
 		}
 	}
@@ -82,45 +81,66 @@ public class FactualScraper {
 		String searchName = KeyIn.inString("Name: ");
 		ConsoleUtils.newLine(3);
 
-		Options options = new Options("USA or specific city?");
+		Options<String> options = new Options<>("USA or specific city?");
 		options.add("USA");
 		options.add("Single City");
-		options.add("Cancel");
-		Options.Item usaOrCity = options.getUserChoice();
-
-		ConsoleUtils.newLine(3);
-		if (usaOrCity.getIndex() == 3) {
+		options.setCancelListener(() -> {
 			System.out.println("Cancelled new search.");
-			return;
-		}
+		});
+		options.getUserChoice().ifPresent(usaOrCity -> {
+			ConsoleUtils.newLine(3);
 
-		ConsoleUtils.printBox("What's your search term?", 3);
-		String searchTerm = KeyIn.inString("Search Term: ");
-		ConsoleUtils.newLine(3);
+			ConsoleUtils.printBox("What's your search term?", 3);
+			String searchTerm = KeyIn.inString("Search Term: ");
+			ConsoleUtils.newLine(3);
 
-		ConsoleUtils.printBox("Paste your Factual Key below\n[Don't have a key? Just hit enter to get one.]", 3);
-		String factualKey = KeyIn.inString("Key: ");
-		if (factualKey.length() == 0) {
-			if (Desktop.isDesktopSupported()) { Desktop.getDesktop().browse(new URI("https://www.factual.com/api-keys/request")); }
-			exit();
-		}
-		ConsoleUtils.newLine(3);
+			ConsoleUtils.printBox("Paste your Factual Key below\n[Don't have a key? Just hit enter to get one.]", 3);
+			String factualKey = KeyIn.inString("Key: ");
+			if (factualKey.length() == 0) {
+				if (Desktop.isDesktopSupported()) {
+					try { Desktop.getDesktop().browse(new URI("https://www.factual.com/api-keys/request")); } catch (Exception e) { e.printStackTrace(); }
+				}
+				exit();
+			}
+			ConsoleUtils.newLine(3);
 
-		ConsoleUtils.printBox("Paste your Factual Secret below\n[Not your key]", 3);
-		String factualSecret = KeyIn.inString("Secret: ");
-		while (factualSecret.equals(factualKey)) {
-			System.out.println("Your Factual Key and Secret should different. Please paste your Factual Secret below.");
-			factualSecret = KeyIn.inString("Secret: ");
-		}
-		ConsoleUtils.newLine(3);
+			ConsoleUtils.printBox("Paste your Factual Secret below\n[Not your key]", 3);
+			String factualSecret = KeyIn.inString("Secret: ");
+			while (factualSecret.equals(factualKey)) {
+				System.out.println("Your Factual Key and Secret should different. Please paste your Factual Secret below.");
+				factualSecret = KeyIn.inString("Secret: ");
+			}
+			ConsoleUtils.newLine(3);
 
-		Search search = new Search(searchName, usaOrCity.getIndex() == 1, searchTerm, factualKey, factualSecret);
-		FileUtils.saveToDirectory(search, FileUtils.getExistingSearchesDir());
+			Search search = new Search(searchName, usaOrCity.getNumber() == 1, searchTerm, factualKey, factualSecret);
+			FileUtils.saveToDirectory(search, FileUtils.getExistingSearchesDir());
+		});
+	}
+
+	private static void deleteASearch () {
+		Options<Search> existingSearchesList = new Options<>("Delete a Search", "Enter the number to delete:");
+		FileUtils.getAllExistingSearches().forEach(existingSearchesList::add);
+		existingSearchesList.setCancelListener(() -> {
+			System.out.println("Nothing was deleted.\n");
+		});
+		existingSearchesList.getUserChoice().ifPresent(searchItem -> {
+			Search searchToDelete = searchItem.getPayload();
+			String confirmationFromUser = KeyIn.inString("Are you sure you wish to permanently delete \"" + searchToDelete.getName() + "\"? Enter y/n: ");
+			if (confirmationFromUser.equalsIgnoreCase("y")) {
+				SearchController.delete(searchToDelete);
+			} else if (confirmationFromUser.equalsIgnoreCase("n")) {
+
+			} else {
+				ConsoleUtils.clearConsole();
+				System.out.println("Nothing was deleted.\n");
+				deleteASearch();
+			}
+		});
 	}
 
 	private static void displayExistingSearches () {
-		Options existingSearchesList = new Options("Existing Searches", null);
-		FileUtils.getAllExistingSearches().forEach(search -> existingSearchesList.add(search.getName()));
+		Options<Search> existingSearchesList = new Options<>("Existing Searches", null);
+		FileUtils.getAllExistingSearches().forEach(existingSearchesList::add);
 		existingSearchesList.displayToUser();
 		KeyIn.inString("Press enter to go back");
 	}

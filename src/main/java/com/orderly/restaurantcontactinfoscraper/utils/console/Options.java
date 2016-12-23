@@ -9,10 +9,11 @@ import java.util.Optional;
 /**
  * Created by Joshua King on 12/19/16.
  */
-public class Options {
-	private           ArrayList<Item> options;
-	private           String          prompt;
-	@Nullable private String          subtitle;
+public class Options<T> {
+	private           ArrayList<Item<T>> options;
+	private           String             prompt;
+	@Nullable private String             subtitle;
+	private           Runnable           cancelListener;
 
 	public Options (@Nonnull String prompt) {
 		this.prompt = prompt;
@@ -26,64 +27,91 @@ public class Options {
 		options = new ArrayList<>();
 	}
 
-	public Item getUserChoice () {
+	public Optional<Item<T>> getUserChoice () {
 		displayToUser();
 
 		int chosenIndex;
 		while (true) {
-			chosenIndex = KeyIn.inInt("Select option: ");
-			if (chosenIndex <= options.size() && chosenIndex > 0) { break; } else {
-				KeyIn.printPrompt("Please choose an option between 1 and " + options.size() + " (inclusive).\n");
+			if (options.size() > 0) {
+				chosenIndex = KeyIn.inInt("Select option: ");
+				if (cancelListener != null && chosenIndex == options.size() + 1) {
+					cancelListener.run();
+					return Optional.empty();
+				}
+				if (chosenIndex <= options.size() && chosenIndex > 0) { break; } else {
+					KeyIn.printPrompt("Please choose an option between 1 and " + options.size() + " (inclusive).\n");
+				}
+			} else {
+				KeyIn.inString("Press enter to continue: ");
+				return Optional.empty();
 			}
 		}
 
-		return options.get(chosenIndex - 1);
+		return Optional.ofNullable(options.get(chosenIndex - 1));
 	}
 
 	public void displayToUser () {
-		for (int i = 0; i < options.size(); i++) { options.get(i).setIndex(i + 1); }
+		for (int i = 0; i < options.size(); i++) { options.get(i).setNumber(i + 1); }
 
-		int longestPromptOrOptionLength = Integer.max(options.stream().map(Item::toString).map(String::length).max(Comparator.naturalOrder()).orElse(0), prompt.length());
+		int lengthOfSubtitle = subtitle == null ? 0 : subtitle.length();
+		String cancel = String.format("%d. Cancel", options.size() + 1);
+
+		int longestPromptOrOptionLength = options.stream().map(Item::toString).map(String::length).max(Comparator.naturalOrder()).orElse(0);
+		longestPromptOrOptionLength = Integer.max(longestPromptOrOptionLength, prompt.length());
+		longestPromptOrOptionLength = Integer.max(longestPromptOrOptionLength, lengthOfSubtitle);
+		longestPromptOrOptionLength = Integer.max(longestPromptOrOptionLength, cancel.length());
 		int width = longestPromptOrOptionLength + 8;
 
 		ConsoleUtils.printBox(prompt, 3, width);
-		Optional.ofNullable(subtitle).ifPresent(subtitle -> ConsoleUtils.printStringWithPadding(subtitle, 1, width));
 
-		options.stream().map(Item::toString).forEach(s -> ConsoleUtils.printStringWithPadding(s, 3, width));
+		if (options.size() > 0) {
+			Optional.ofNullable(subtitle).ifPresent(subtitle -> ConsoleUtils.printStringWithPadding(subtitle, 1, width));
+			options.stream().map(Item::toString).forEach(s -> ConsoleUtils.printStringWithPadding(s, 3, width));
+			if (cancelListener != null) { ConsoleUtils.printStringWithPadding(cancel, 3, width); }
+		}
 
 		ConsoleUtils.printDivider(width, "=");
 	}
 
-	public void add (String name) {
-		add(new Item(name));
+	public Item<T> add (T t) {
+		return add(new Item<>(t));
 	}
 
-	public void add (Item item) {
+	public Item<T> add (Item<T> item) {
 		options.add(item);
+		return item;
 	}
 
-	public static class Item {
-		private final String name;
-		private       int    index;
+	public void setCancelListener (Runnable cancelListener) {
+		this.cancelListener = cancelListener;
+	}
 
-		public Item (String name) {
-			this.name = name;
+	public static class Item<T> {
+		private final T   t;
+		private       int number;
+
+		public Item (T t) {
+			this.t = t;
 		}
 
 		@Override public String toString () {
-			return String.format("%d. %s", index, name);
+			return String.format("%d. %s", number, t.toString());
 		}
 
 		public String getName () {
-			return name;
+			return t.toString();
 		}
 
-		public int getIndex () {
-			return index;
+		public T getPayload () {
+			return t;
 		}
 
-		public void setIndex (int index) {
-			this.index = index;
+		public int getNumber () {
+			return number;
+		}
+
+		public void setNumber (int number) {
+			this.number = number;
 		}
 	}
 }

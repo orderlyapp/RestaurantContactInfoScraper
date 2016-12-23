@@ -6,8 +6,10 @@ import java.awt.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by Joshua King on 12/19/16.
@@ -41,28 +43,31 @@ public class FileUtils {
 		return new File("./" + EXISTING_SEARCHES_DIRECTORY_NAME);
 	}
 
-	public static void saveToDirectory (Serializable serializable, File dir) {
+	public static void saveToDirectory (Search search, File dir) {
 		if (!dir.exists() && !dir.mkdirs()) {
 			System.err.println("AN ERROR OCCURRED WHILE SAVING - Could not create directory at: " + dir.getAbsolutePath());
 			return;
 		}
 
 		try {
-			FileOutputStream fos = new FileOutputStream(dir.getPath() + "/" + System.currentTimeMillis() + ".ser");
+			String s = dir.getPath() + "/" + search.getOutputDirectory();
+			new File(s).mkdirs();
+			FileOutputStream fos = new FileOutputStream(s + "/object.ser");
 			ObjectOutputStream oos = new ObjectOutputStream(fos);
-			oos.writeObject(serializable);
+			oos.writeObject(search);
 			oos.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public static ArrayList<Search> getAllExistingSearches () {
-		return getAllFromDirectory(getExistingSearchesDir());
+	public static Set<Search> getAllExistingSearches () {
+		Map<Search, File> allFromDirectory = getAllFromDirectory(getExistingSearchesDir());
+		return allFromDirectory.keySet();
 	}
 
-	public static <T extends Serializable> ArrayList<T> getAllFromDirectory (File dir) {
-		ArrayList<T> serializables = new ArrayList<>();
+	public static Map<Search, File> getAllFromDirectory (File dir) {
+		Map<Search, File> searchFileMap = new HashMap<>();
 
 		if (dir.exists()) {
 			File[] files = dir.listFiles();
@@ -70,9 +75,9 @@ public class FileUtils {
 
 			Arrays.stream(files).forEach(file -> {
 				try {
-					FileInputStream fis = new FileInputStream(file.getPath());
+					FileInputStream fis = new FileInputStream(file.getPath() + "/object.ser");
 					ObjectInputStream ois = new ObjectInputStream(fis);
-					serializables.add((T) ois.readObject());
+					searchFileMap.put((Search) ois.readObject(), file);
 					ois.close();
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -80,6 +85,10 @@ public class FileUtils {
 			});
 		}
 
-		return serializables;
+		return searchFileMap;
+	}
+
+	public static Map<Search, File> getAllExistingSearchesAsMapFromDir () {
+		return getAllFromDirectory(getExistingSearchesDir());
 	}
 }
