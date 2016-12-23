@@ -125,11 +125,9 @@ public class FactualScraper {
 		});
 		existingSearchesList.getUserChoice().ifPresent(searchItem -> {
 			Search searchToDelete = searchItem.getPayload();
-			String confirmationFromUser = KeyIn.inString("Are you sure you wish to permanently delete \"" + searchToDelete.getName() + "\"? Enter y/n: ");
+			String confirmationFromUser = KeyIn.inString("Are you sure you wish to permanently delete \"" + searchToDelete.getName() + "\" and all of it's results? Enter y/n: ");
 			if (confirmationFromUser.equalsIgnoreCase("y")) {
 				SearchController.delete(searchToDelete);
-			} else if (confirmationFromUser.equalsIgnoreCase("n")) {
-
 			} else {
 				ConsoleUtils.clearConsole();
 				System.out.println("Nothing was deleted.\n");
