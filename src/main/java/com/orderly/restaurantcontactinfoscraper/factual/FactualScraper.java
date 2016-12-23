@@ -180,7 +180,8 @@ public class FactualScraper {
 					try { Desktop.getDesktop().browse(new URI("https://www.factual.com/api-keys/request")); }
 					catch (Exception e) { e.printStackTrace(); }
 				}
-				exit();
+				ConsoleUtils.clearConsole();
+				return;
 			}
 			ConsoleUtils.newLine(3);
 
