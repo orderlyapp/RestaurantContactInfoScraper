@@ -1,320 +1,235 @@
 package com.orderly.restaurantcontactinfoscraper.factual;
 
-import com.factual.driver.*;
-import com.orderly.restaurantcontactinfoscraper.Coordinates;
-import com.orderly.restaurantcontactinfoscraper.FileUtils;
-import com.orderly.restaurantcontactinfoscraper.GeoBlock;
+import com.factual.driver.Factual;
+import com.factual.driver.Query;
+import com.factual.driver.ReadResponse;
+import com.orderly.restaurantcontactinfoscraper.controller.SearchController;
+import com.orderly.restaurantcontactinfoscraper.model.Search;
+import com.orderly.restaurantcontactinfoscraper.utils.FileUtils;
+import com.orderly.restaurantcontactinfoscraper.utils.MapsUtils;
+import com.orderly.restaurantcontactinfoscraper.utils.console.ConsoleUtils;
+import com.orderly.restaurantcontactinfoscraper.utils.console.KeyIn;
+import com.orderly.restaurantcontactinfoscraper.utils.console.Options;
 import javafx.util.Pair;
-import org.apache.activemq.artemis.utils.json.JSONArray;
-import org.apache.activemq.artemis.utils.json.JSONException;
-import org.apache.activemq.artemis.utils.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.File;
+import java.awt.*;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Optional;
+
+import static com.orderly.restaurantcontactinfoscraper.controller.SearchController.exit;
 
 /**
  * Created on 5/2/16.
- *
+ * <p>
  * http://www.darrinward.com/lat-long/?id=1935749
+ * <p>
+ * KEY    : WynD7vY8DuZXFSsQng6ePIsaT3pPUgDx5TwZV41f
+ * SECRET : tqP4PIK5oKIpRF5mRxRJJI1IDrUp8gXI4fKIPUjl
  */
 public class FactualScraper {
-    public static final String HEADER = "name,phone,address,locality,region,country,zip,website,email,factual_page,latitude,longitude";
-    public static final String KEY = "WynD7vY8DuZXFSsQng6ePIsaT3pPUgDx5TwZV41f";
-    public static final int LIMIT_RECORDS_PER_PAGE = 50;
-    public static final int MAX_RECORDS_PER_BLOCK = 500;
-    public static final String NEW_LINE = "\n";
-    public static final String QUOTE = "\"";
-    public static final String SECRET = "tqP4PIK5oKIpRF5mRxRJJI1IDrUp8gXI4fKIPUjl";
-    private static File usaCoordinatesDoneDrillInFile;
+	public static void main (String[] args) throws Exception {
+		ConsoleUtils.clearConsole();
+		while (true) {
+			int numberOfExistingSearches = FileUtils.getExistingSearchesAsFiles().length;
 
-    public static void main(String[] args) throws Exception {
-        if (args.length == 2 && args[1].toLowerCase().equals("usa")) {
-            pullUSA(args);
-        } else if (args.length < 5) {
-            System.out.println("USAGE: java -jar FactualScraper.jar <output_directory> <city> <state> <country> <area_size_in_miles> <should_open_file_when_done: optional, default is false>");
-            System.out.println("        -- OR --");
-            System.out.println("       java -jar FactualScraper.jar <output_directory> USA");
-            exit();
-        } else pullCity(args);
-    }
+			Options<String> toDoOptions = new Options<>("What would you like to do?");
+			Options.Item<String> createNewSearchItem = toDoOptions.add("Create a new search");
+			Options.Item<String> runExistingSearchItem = toDoOptions.add("Run an existing search");
+			Options.Item<String> deleteASearchItem = toDoOptions.add("Delete a search");
+			Options.Item<String> displayAllSearchesItem = toDoOptions.add(String.format("Display all %d searches", numberOfExistingSearches));
+			Options.Item<String> viewResultsItem = toDoOptions.add("View results from a search");
+			Options.Item<String> checkApiUsageItem = toDoOptions.add("Check API Usage");
+			Options.Item<String> exitItem = toDoOptions.add("Exit");
+			Options.Item<String> toDo = toDoOptions.getUserChoice().orElse(exitItem);
 
-    private static void pullUSA(String[] args) throws Exception {
-        String outputDir = args[0];
-        int blockSize = 15;
-        List<Coordinates> coordinatesInUS = SplitUSIntoCoordinates.getCoordinatesInUS();
-        File usaCoordinatesDoneFile = new File(outputDir + "/coordinates_done_usa.txt");
-        usaCoordinatesDoneDrillInFile = new File(outputDir + "/coordinates_drill_in_done_usa.txt");
+			if (toDo.equals(createNewSearchItem)) {
+				ConsoleUtils.clearConsole();
+				createNewSearch();
+			}
+			else if (toDo.equals(runExistingSearchItem)) {
+				ConsoleUtils.clearConsole();
+				runASearch();
+			}
+			else if (toDo.equals(deleteASearchItem)) {
+				ConsoleUtils.clearConsole();
+				deleteASearch();
+			}
+			else if (toDo.equals(displayAllSearchesItem)) {
+				ConsoleUtils.clearConsole();
+				displayExistingSearches();
+			}
+			else if (toDo.equals(exitItem)) {
+				System.out.println();
+				System.out.println("Have a nice day!");
+				exit();
+			}
+			else if (toDo.equals(viewResultsItem)) {
+				ConsoleUtils.clearConsole();
+				viewResultsForASearch();
+			}
+			else if (toDo.equals(checkApiUsageItem)) {
+				ConsoleUtils.clearConsole();
+				checkApiUsage();
+			}
+			else {
+				exit();
+			}
+		}
+	}
 
-        if (usaCoordinatesDoneFile.exists()) {
-            coordinatesInUS.removeAll(Files.readAllLines(usaCoordinatesDoneFile.toPath()).stream().filter(line -> line.trim().length() > 0).map(Coordinates::parse).collect(Collectors.toList()));
-        }
+	private static void checkApiUsage () {
+		ConsoleUtils.printBox("Paste your Factual Key below", 3);
+		String factualKey = KeyIn.inString("Key: ");
+		ConsoleUtils.newLine(3);
 
-        System.out.printf("Getting Factual data for the continental United States");
-        System.out.println();
-        Set<JSONObject> jsonObjects = new HashSet<>();
+		ConsoleUtils.printBox("Paste your Factual Secret below\n[Not your key]", 3);
+		String factualSecret = KeyIn.inString("Secret: ");
+		while (factualSecret.equals(factualKey)) {
+			System.out.println("Your Factual Key and Secret should different. Please paste your Factual Secret below.");
+			factualSecret = KeyIn.inString("Secret: ");
+		}
+		ConsoleUtils.newLine(3);
 
-        // Username: jking@siftit.com
-        // Password: TheOrderlyPassword
+		Factual factual = new Factual(factualKey, factualSecret);
+		Query query = new Query().limit(1);
+		ReadResponse readResponse = factual.fetch("restaurants-us", query);
+		String throttleInfo = readResponse.getRawResponse().getHeaders().getFirstHeaderStringValue("X-Factual-Throttle-Allocation");
+		SearchController.printThrottleInfo(throttleInfo);
+		ConsoleUtils.newLine(3);
+	}
 
-        Factual factual = new Factual(KEY, SECRET);
-        double blockSizeInCoordsApprox = milesToCoordsApprox(blockSize);
+	private static void viewResultsForASearch () {
+		Options<Search> existingSearchesList = new Options<>("View Search Results", "Enter the number to view:");
+		FileUtils.getAllExistingSearches().forEach(existingSearchesList::add);
+		existingSearchesList.setCancelListener(() -> {
+			ConsoleUtils.clearConsole();
+			System.out.println("No search was selected.\n");
+		});
+		existingSearchesList.getUserChoice().map(Options.Item::getPayload).ifPresent(SearchController::viewResults);
+	}
 
-        String throttleInfo = "";
-        System.out.println();
-        new File(outputDir).mkdirs();
-        usaCoordinatesDoneDrillInFile.createNewFile();
-        File outputFile = new File(outputDir + "/usa_" + String.valueOf(System.currentTimeMillis()) + ".csv");
-        FileUtils.createAndWriteToFile(outputFile, HEADER, false);
 
-        for (Coordinates coordinates : coordinatesInUS) {
-            GeoBlock block = new GeoBlock(coordinates, blockSizeInCoordsApprox);
+	private static void runASearch () {
+		Options<Search> existingSearchesList = new Options<>("Run a Search", "Enter the number to run:");
+		FileUtils.getAllExistingSearches().forEach(existingSearchesList::add);
+		existingSearchesList.setCancelListener(() -> {
+			ConsoleUtils.clearConsole();
+			System.out.println("No search was run.\n");
+		});
+		existingSearchesList.getUserChoice().map(Options.Item::getPayload).ifPresent(SearchController::run);
+	}
 
-            throttleInfo = getRecordsAndDrillDownInBlockAsNeeded(jsonObjects, factual, block, throttleInfo);
-            String csvContent = jsonObjectsToCsv(jsonObjects);
+	public static void createNewSearch () throws IOException, URISyntaxException {
+		ConsoleUtils.printBox("What would you like to name this search?", 3);
+		String searchName = KeyIn.inString("Name: ");
+		ConsoleUtils.newLine(3);
 
-            jsonObjects.clear();
-            FileUtils.createAndWriteToFile(outputFile, csvContent, false, StandardOpenOption.APPEND);
-            FileUtils.createAndWriteToFile(usaCoordinatesDoneFile, "\n" + coordinates, false, StandardOpenOption.APPEND);
-        }
+		Options<String> options = new Options<>("USA or specific city?");
+		Options.Item<String> isUsaItem = options.add("USA");
+		Options.Item<String> singleCityItem = options.add("Single City");
+		options.setCancelListener(() -> System.out.println("Cancelled new search."));
+		options.getUserChoice().ifPresent(usaOrCity -> {
+			ConsoleUtils.newLine(3);
 
-        printThrottleInfo(throttleInfo);
-        System.out.println();
-        System.out.println();
+			String country = null;
+			String state = null;
+			String city = null;
+			int totalBlockSizeMiles = 0;
+			if (usaOrCity.equals(singleCityItem)) {
+				ConsoleUtils.printBox("What country do you want to search in?", 3);
+				country = KeyIn.inString("Country: ");
+				ConsoleUtils.newLine(3);
 
-        System.out.printf("File located at %s%n", outputFile.toPath().toAbsolutePath());
-        System.out.println("Done.");
-    }
-    private static String jsonObjectsToCsv(Set<JSONObject> jsonObjects) {
-        return NEW_LINE + jsonObjects.stream().map(obj -> {
-            String name = obj.optString("name").trim();
-            String phone = obj.optString("tel").trim();
-            String address = obj.optString("address").trim();
-            String locality = obj.optString("locality").trim();
-            String region = obj.optString("region").trim();
-            String country = obj.optString("country").trim();
-            String zip = obj.optString("postcode").trim();
-            String website = obj.optString("website").trim();
-            String email = obj.optString("email");
-            String factualPageUrl = "https://www.factual.com/" + obj.optString("factual_id").trim();
-            String lat = String.valueOf(obj.optDouble("latitude"));
-            String lon = String.valueOf(obj.optDouble("longitude"));
+				ConsoleUtils.printBox("What state/province do you want to search in?", 3);
+				state = KeyIn.inString("State: ");
+				ConsoleUtils.newLine(3);
 
-            String[] csvLineData = new String[] {name, phone, address, locality, region, country, zip, website, email, factualPageUrl, lat, lon};
-            return Arrays.stream(csvLineData).map(cell -> QUOTE + cell.replace(QUOTE, QUOTE + QUOTE) + QUOTE).reduce((cell1, cell2) -> cell1.trim().concat(",").concat(cell2.trim())).orElse("").trim().replaceAll("\\n", "\t\t");
-        }).filter(s -> s.trim().length() > 0).reduce((row1, row2) -> row1.concat(NEW_LINE).concat(row2)).orElse("");
-    }
+				ConsoleUtils.printBox("What city do you want to search in?", 3);
+				city = KeyIn.inString("City: ");
+				ConsoleUtils.newLine(3);
 
-    private static void pullCity(String[] args) throws Exception {
-        String outputDir = args[0];
-        String city = args[1];
-        String state = args[2];
-        String country = args[3];
-        int totalBlockSizeMiles = Integer.parseInt(args[4]);
-        boolean openWhenDone = args.length < 6 ? false : Boolean.parseBoolean(args[5]);
+				Optional<Pair<Double, Double>> coordinatesOptional = MapsUtils.getCoordinatesByCityInfo(city, state, country);
 
-        int blockSize = totalBlockSizeMiles < 15 ? totalBlockSizeMiles : 15;
-        int numberOfColumns = totalBlockSizeMiles / blockSize;
-        int minNumberOfBlocks = numberOfColumns * numberOfColumns;
+				if (!coordinatesOptional.isPresent()) {
+					ConsoleUtils.clearConsole();
+					System.out.println("City/State/Country combination not found. Canceling new search.");
+					System.out.printf("The inputted City, State, Country: %s, %s, %s%n", city, state, country);
+					ConsoleUtils.newLine(2);
+					return;
+				}
+				else {
+					System.out.println("City of " + city + " was verified with Google. ✔️");
+					ConsoleUtils.newLine(2);
+				}
 
-        System.out.printf("Getting Factual data for restaurants in a %dx%d mile block around the center of %s, %s, %s and saving it in \"%s\"%n", totalBlockSizeMiles, totalBlockSizeMiles, city, state, country, outputDir);
+				ConsoleUtils.printBox("How many miles wide should be searched?", 3);
+				totalBlockSizeMiles = KeyIn.inInt("Miles: ");
+				ConsoleUtils.newLine(3);
+			}
 
-        Optional<Pair<Double, Double>> coordinatesOptional = getCoordinatesByCityInfo(city, state, country);
+			ConsoleUtils.printBox("What's your search term?", 3);
+			String searchTerm = KeyIn.inString("Search Term: ");
+			ConsoleUtils.newLine(3);
 
-        if (coordinatesOptional.isPresent()) {
-            Pair<Double, Double> coordinates = coordinatesOptional.get();
-            double origCenterLat = coordinates.getKey();
-            double originalCenterLon = coordinates.getValue();
+			ConsoleUtils.printBox("Paste your Factual Key below\n[Don't have a key? Just hit enter to get one.]", 3);
+			String factualKey = KeyIn.inString("Key: ");
+			if (factualKey.length() == 0) {
+				if (Desktop.isDesktopSupported()) {
+					try { Desktop.getDesktop().browse(new URI("https://www.factual.com/api-keys/request")); }
+					catch (Exception e) { e.printStackTrace(); }
+				}
+				ConsoleUtils.clearConsole();
+				return;
+			}
+			ConsoleUtils.newLine(3);
 
-            Set<JSONObject> jsonObjects = new HashSet<>();
+			ConsoleUtils.printBox("Paste your Factual Secret below\n[Not your key]", 3);
+			String factualSecret = KeyIn.inString("Secret: ");
+			while (factualSecret.equals(factualKey)) {
+				System.out.println("Your Factual Key and Secret should different. Please paste your Factual Secret below.");
+				factualSecret = KeyIn.inString("Secret: ");
+			}
+			ConsoleUtils.newLine(3);
 
-            // Username: jking@siftit.com
-            // Password: TheOrderlyPassword
+			Search search;
+			if (usaOrCity.equals(isUsaItem)) { search = new Search(searchName, searchTerm, factualKey, factualSecret); }
+			else {
+				search = new Search(searchName, city, state, country, totalBlockSizeMiles, searchTerm, factualKey, factualSecret);
+			}
+			FileUtils.saveToDirectory(search, FileUtils.getExistingSearchesDir());
+		});
+	}
 
-            Factual factual = new Factual(KEY, SECRET);
-            double milesInCoordsApprox = milesToCoordsApprox(totalBlockSizeMiles / 2);
-            double blockSizeInCoordsApprox = milesToCoordsApprox(blockSize);
+	private static void deleteASearch () {
+		Options<Search> existingSearchesList = new Options<>("Delete a Search", "Enter the number to delete:");
+		FileUtils.getAllExistingSearches().forEach(existingSearchesList::add);
+		existingSearchesList.setCancelListener(() -> {
+			ConsoleUtils.clearConsole();
+			System.out.println("Nothing was deleted.\n");
+		});
+		existingSearchesList.getUserChoice().ifPresent(searchItem -> {
+			Search searchToDelete = searchItem.getPayload();
+			String confirmationFromUser = KeyIn.inString("Are you sure you wish to permanently delete \"" + searchToDelete.getName() + "\" and all of it's results? Enter y/n: ");
+			if (confirmationFromUser.equalsIgnoreCase("y")) {
+				SearchController.delete(searchToDelete);
+				ConsoleUtils.clearConsole();
+				System.out.printf("\"%s\" was successfully deleted%n%n%n", searchToDelete.getName());
+			}
+			else {
+				ConsoleUtils.clearConsole();
+				System.out.println("Nothing was deleted.\n");
+				deleteASearch();
+			}
+		});
+	}
 
-            double upperLeftLat = origCenterLat + milesInCoordsApprox;
-            double upperLeftLon = originalCenterLon - milesInCoordsApprox;
-
-            String throttleInfo = "";
-            System.out.println();
-
-            for (int i = 0; i < minNumberOfBlocks; i++) {
-                int rowsCompleted = i / numberOfColumns;
-                int indexOnThisRow = i - rowsCompleted * numberOfColumns;
-                double latFrom = upperLeftLat - blockSizeInCoordsApprox * rowsCompleted;
-                double lonFrom = upperLeftLon + blockSizeInCoordsApprox * indexOnThisRow;
-
-                GeoBlock block = new GeoBlock(new Coordinates(latFrom, lonFrom), blockSizeInCoordsApprox);
-
-                updateProgress(i, minNumberOfBlocks);
-                throttleInfo = getRecordsAndDrillDownInBlockAsNeeded(jsonObjects, factual, block, throttleInfo);
-            }
-
-            updateProgress(minNumberOfBlocks, minNumberOfBlocks);
-            printThrottleInfo(throttleInfo);
-            System.out.println("Writing to file...");
-            System.out.println();
-
-            String csvContent = HEADER + jsonObjectsToCsv(jsonObjects);
-
-            new File(outputDir).mkdirs();
-            File outputFile = new File(outputDir + "/" + city + "_" + state + "_" + String.valueOf(System.currentTimeMillis()) + ".csv");
-            FileUtils.createAndWriteToFile(outputFile, csvContent, openWhenDone);
-
-            System.out.println("Done.");
-        } else {
-            System.out.println("City not found. Exiting.");
-            exit();
-        }
-    }
-    private static String getRecordsAndDrillDownInBlockAsNeeded(Set<JSONObject> jsonObjects, Factual factual, GeoBlock block, String throttleInfo) throws InterruptedException, JSONException {
-        Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects, factual, block, throttleInfo);
-        int recordsGatheredForBlock = numberOfRecordsGatheredAndThrottleInfoPair.getKey();
-        throttleInfo = numberOfRecordsGatheredAndThrottleInfoPair.getValue();
-        throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
-        return throttleInfo;
-    }
-    private static String drillDownInBlockIfNeeded(Set<JSONObject> jsonObjects, Factual factual, String throttleInfo, GeoBlock block, int recordsGatheredForBlock) throws InterruptedException, JSONException {
-        if (recordsGatheredForBlock == MAX_RECORDS_PER_BLOCK) {
-            double newBlockSizeInCoords = Math.abs((block.ul.lat - block.lr.lat) / 2);
-            double origLatFrom = block.ul.lat;
-            double origLonFrom = block.ul.lon;
-
-            int numOfColumns = 2;
-            for (int i = 0; i < numOfColumns * numOfColumns; i++) {
-                int rowsCompleted = i / numOfColumns;
-                int indexOnThisRow = i - rowsCompleted * numOfColumns;
-                block.ul.lat = origLatFrom - (rowsCompleted * newBlockSizeInCoords);
-                block.ul.lon = origLonFrom + (indexOnThisRow * newBlockSizeInCoords);
-                block.lr.lat = origLatFrom - (rowsCompleted * newBlockSizeInCoords + newBlockSizeInCoords);
-                block.lr.lon = origLonFrom + (indexOnThisRow * newBlockSizeInCoords + newBlockSizeInCoords);
-
-                try {
-                    FileUtils.createAndWriteToFile(usaCoordinatesDoneDrillInFile, "\n" + block, false, StandardOpenOption.APPEND);
-                } catch (IOException ignored) {
-                }
-
-                Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects, factual, block, throttleInfo);
-                recordsGatheredForBlock = numberOfRecordsGatheredAndThrottleInfoPair.getKey();
-                throttleInfo = numberOfRecordsGatheredAndThrottleInfoPair.getValue();
-                throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
-            }
-        }
-        return throttleInfo;
-    }
-
-    private static Pair<Integer, String> tryToAddRecordsToSetWithinBlock(Set<JSONObject> jsonObjects, Factual factual, GeoBlock block, String throttleInfo) throws InterruptedException, JSONException {
-        try {
-            int recordsGatheredForBlock = 0;
-            for (int j = 0; j < MAX_RECORDS_PER_BLOCK; j += LIMIT_RECORDS_PER_PAGE) {
-                Shape rectangle = block.toRectangle();
-                Query query = new Query().field("email").notBlank().field("category_labels").includesAny("SOCIAL", "FOOD AND DINING", "RESTAURANTS", "BARS").within(rectangle).limit(LIMIT_RECORDS_PER_PAGE).offset(j);
-                Thread.sleep(500);      // To help with the burst and expensive throttle
-
-                ReadResponse readResponse = factual.fetch("restaurants-us", query);
-                throttleInfo = readResponse.getRawResponse().getHeaders().getFirstHeaderStringValue("X-Factual-Throttle-Allocation");
-
-                String jsonAsString = readResponse.getJson();
-                JSONObject obj = new JSONObject(jsonAsString);
-                JSONObject response = obj.getJSONObject("response");
-                int numberOfRecordsReturnedForPage = response.optInt("included_rows", LIMIT_RECORDS_PER_PAGE);
-                recordsGatheredForBlock += numberOfRecordsReturnedForPage;
-                JSONArray objArray = response.getJSONArray("data");
-                for (int k = 0; k < objArray.length(); k++) {
-                    jsonObjects.add(objArray.getJSONObject(k));
-                }
-                if (numberOfRecordsReturnedForPage != LIMIT_RECORDS_PER_PAGE) { break; }
-            }
-            return new Pair<>(recordsGatheredForBlock, throttleInfo);
-        } catch (FactualApiException e) {
-            e.printStackTrace();
-            printThrottleInfo(throttleInfo);
-            if (e.getStatusCode() == 403 && !e.getMessage().toLowerCase().contains("please simplify your query")) exit();
-            else restart();
-            return new Pair<>(0, throttleInfo);
-        }
-    }
-    private static double milesToCoordsApprox(double miles) {
-        return miles / 69.1;
-    }
-    private static void printThrottleInfo(String throttleInfo) {
-        System.out.println();
-        System.out.println();
-        try {
-            System.out.printf("API usage for this 24-hour period is at %s%n", new JSONObject(throttleInfo).getString("daily"));
-        } catch (JSONException ignored) {
-        }
-        System.out.println(throttleInfo);
-        System.out.println();
-    }
-
-    /**
-     * x out of y
-     */
-    private static void updateProgress(int x, int y) {
-        double progressPercentage = x / y;
-        final int width = 150; // progress bar width in chars
-
-        System.out.printf("\r%d/%d -- %s%% [", x, y, (float) Math.round(progressPercentage * 1000) / 10);
-        int i = 0;
-        for (; i <= (int) (progressPercentage * width); i++) {
-            System.out.print("=");
-        }
-        for (; i < width; i++) {
-            System.out.print(" ");
-        }
-        System.out.print("]");
-    }
-    private static void exit() { System.exit(1); }
-    private static void restart() { System.exit(2); }
-    public static Optional<Pair<Double, Double>> getCoordinatesByCityInfo(String city, String state, String country) {
-        try {
-            //	https://maps.googleapis.com/maps/api/geocode/json?address=cumming,ga,usa
-            String key = "AIzaSyB0ObIHD41ZiTIQv6P8dwWx4L1h8jA1Jug";
-            String url = urlEscapeSpace(String.format("https://maps.googleapis.com/maps/api/geocode/json?key=%s&address=<%s,%s,%s>", key, city, state, country));
-            String response = getResponseBody(url);
-
-            JSONObject obj = new JSONObject(response);
-            if (!obj.getString("status").equalsIgnoreCase("OK")) {
-                throw new Exception("Return Status was NOT \"OK\"!\n\n" + response);
-            }
-            JSONObject res = obj.getJSONArray("results").getJSONObject(0);
-            JSONObject loc = res.getJSONObject("geometry").getJSONObject("location");
-            double lat = loc.getDouble("lat");
-            double lon = loc.getDouble("lng");
-
-            return Optional.of(new Pair<>(lat, lon));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Optional.empty();
-        }
-    }
-    private static String urlEscapeSpace(String url) {
-        return url.replaceAll(" ", "%20");
-    }
-    private static String getResponseBody(String url) {
-        try {
-            URLConnection connection = new URL(url).openConnection();
-            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-            String inputLine;
-
-            String response = "";
-            while ((inputLine = in.readLine()) != null) { response += inputLine; }
-            in.close();
-            return response;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "";
-        }
-    }
+	private static void displayExistingSearches () {
+		Options<Search> existingSearchesList = new Options<>("Existing Searches", null);
+		FileUtils.getAllExistingSearches().forEach(existingSearchesList::add);
+		existingSearchesList.displayToUser();
+		KeyIn.inString("Press enter to go back");
+		ConsoleUtils.clearConsole();
+	}
 }
