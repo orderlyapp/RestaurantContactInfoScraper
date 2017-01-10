@@ -66,7 +66,7 @@ public class SearchController {
 		int blockSize = 15;
 		List<Coordinates> coordinatesInUS = SplitUSIntoCoordinates.getCoordinatesInUS();
 		File usaCoordinatesDoneFile = new File(outputDir + "coordinates_done_usa.txt");
-		usaCoordinatesDoneDrillInFile = new File(outputDir + "coordinates_drill_in_done_usa.txt");
+		usaCoordinatesDoneDrillInFile = getUSACoordinatesDoneDrillInFile(search);
 
 		if (usaCoordinatesDoneFile.exists()) {
 			coordinatesInUS.removeAll(
@@ -86,14 +86,13 @@ public class SearchController {
 		String throttleInfo = "";
 		System.out.println();
 		new File(outputDir).mkdirs();
-		usaCoordinatesDoneDrillInFile.createNewFile();
 		File outputFile = new File(outputDir + File.separator + "usa_" + String.valueOf(System.currentTimeMillis()) + ".csv");
 		FileUtils.createAndWriteToFile(outputFile, HEADER);
 
 		for (Coordinates coordinates : coordinatesInUS) {
 			GeoBlock block = new GeoBlock(coordinates, blockSizeInCoordsApprox);
 
-			throttleInfo = getRecordsAndDrillDownInBlockAsNeeded(jsonObjects, factual, block, throttleInfo);
+			throttleInfo = getRecordsAndDrillDownInBlockAsNeeded(search, jsonObjects, factual, block, throttleInfo);
 			String csvContent = jsonObjectsToCsv(jsonObjects);
 
 			jsonObjects.clear();
@@ -179,7 +178,7 @@ public class SearchController {
 				GeoBlock block = new GeoBlock(new Coordinates(latFrom, lonFrom), blockSizeInCoordsApprox);
 
 				updateProgress(i, minNumberOfBlocks);
-				throttleInfo = getRecordsAndDrillDownInBlockAsNeeded(jsonObjects, factual, block, throttleInfo);
+				throttleInfo = getRecordsAndDrillDownInBlockAsNeeded(search, jsonObjects, factual, block, throttleInfo);
 			}
 
 			updateProgress(minNumberOfBlocks, minNumberOfBlocks);
@@ -201,17 +200,17 @@ public class SearchController {
 		}
 	}
 
-	private static String getRecordsAndDrillDownInBlockAsNeeded (Set<JSONObject> jsonObjects, Factual factual, GeoBlock block, String throttleInfo)
-			throws InterruptedException, JSONException {
+	private static String getRecordsAndDrillDownInBlockAsNeeded (Search search, Set<JSONObject> jsonObjects, Factual factual, GeoBlock block, String throttleInfo)
+		throws InterruptedException, JSONException, IOException {
 		Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects, factual, block, throttleInfo);
 		int recordsGatheredForBlock = numberOfRecordsGatheredAndThrottleInfoPair.getKey();
 		throttleInfo = numberOfRecordsGatheredAndThrottleInfoPair.getValue();
-		throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
+		throttleInfo = drillDownInBlockIfNeeded(search, jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
 		return throttleInfo;
 	}
 
-	private static String drillDownInBlockIfNeeded (Set<JSONObject> jsonObjects, Factual factual, String throttleInfo, GeoBlock block, int recordsGatheredForBlock)
-			throws InterruptedException, JSONException {
+	private static String drillDownInBlockIfNeeded (Search search, Set<JSONObject> jsonObjects, Factual factual, String throttleInfo, GeoBlock block, int recordsGatheredForBlock)
+		throws InterruptedException, JSONException, IOException {
 		if (recordsGatheredForBlock == MAX_RECORDS_PER_BLOCK) {
 			double newBlockSizeInCoords = Math.abs((block.ul.lat - block.lr.lat) / 2);
 			double origLatFrom = block.ul.lat;
@@ -226,6 +225,10 @@ public class SearchController {
 				block.lr.lat = origLatFrom - (rowsCompleted * newBlockSizeInCoords + newBlockSizeInCoords);
 				block.lr.lon = origLonFrom + (indexOnThisRow * newBlockSizeInCoords + newBlockSizeInCoords);
 
+				if (usaCoordinatesDoneDrillInFile == null){
+					usaCoordinatesDoneDrillInFile = getUSACoordinatesDoneDrillInFile(search);
+				}
+
 				try {
 					FileUtils.createAndWriteToFile(usaCoordinatesDoneDrillInFile, "\n" + block, StandardOpenOption.APPEND);
 				}
@@ -235,7 +238,7 @@ public class SearchController {
 				Pair<Integer, String> numberOfRecordsGatheredAndThrottleInfoPair = tryToAddRecordsToSetWithinBlock(jsonObjects, factual, block, throttleInfo);
 				recordsGatheredForBlock = numberOfRecordsGatheredAndThrottleInfoPair.getKey();
 				throttleInfo = numberOfRecordsGatheredAndThrottleInfoPair.getValue();
-				throttleInfo = drillDownInBlockIfNeeded(jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
+				throttleInfo = drillDownInBlockIfNeeded(search, jsonObjects, factual, throttleInfo, block, recordsGatheredForBlock);
 			}
 		}
 		return throttleInfo;
@@ -325,5 +328,12 @@ public class SearchController {
 		ConsoleUtils.clearConsole();
 		try { Desktop.getDesktop().open(new File(FileUtils.EXISTING_SEARCHES_DIRECTORY_NAME + search.getOutputDirectory())); }
 		catch (IOException e) { System.out.println("An error occurred while viewing results"); }
+	}
+
+	private static File getUSACoordinatesDoneDrillInFile(Search search) throws IOException {
+		String outputDir = FileUtils.EXISTING_SEARCHES_DIRECTORY_NAME + search.getOutputDirectory();
+		File usaCoordinatesDoneDrillInFile = new File(outputDir + "coordinates_drill_in_done_usa.txt");
+		usaCoordinatesDoneDrillInFile.createNewFile();
+		return usaCoordinatesDoneDrillInFile;
 	}
 }
